@@ -63,6 +63,10 @@ app.get('/download', function (req, res, next) {
     f.pipe(res);
 })
 
+app.get('/cors', function (req, res, next) {
+  res.redirect(302, 'http://localhost:8088/log.html');
+})
+
 
 
 

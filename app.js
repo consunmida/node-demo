@@ -8,6 +8,11 @@ const fs = require('fs');
 
 const util = require('util');
 
+const bodyParser = require('body-parser');
+const urlencodedParser = bodyParser.urlencoded({
+  extended:true
+});
+const url = require('url');
 let app = new express();
 app.use(cookieSession({
     name: 'session',
@@ -17,6 +22,9 @@ app.use(cookieSession({
   }))
 
 app.use(cookieParser());
+
+app.use(bodyParser.json());
+
 
 app.all('*', function (req, res, next) {
     res.header('Access-Control-Allow-Origin', req.headers.origin);
@@ -31,7 +39,7 @@ app.get('/', function (req, res, next) {
     console.log(req.headers);
     const origin = req.headers.origin;
     if (req.cookies && req.cookies.name) {
-        res.cookie("name",'zhangsan',{maxAge: 0, httpOnly: true});
+        res.cookie("name",'zhangsan',{maxAge: 900000, httpOnly: true});
         res.send({cookie: req.cookies.name});
     } else {
         res.cookie("name",'zhangsan',{maxAge: 900000, httpOnly: true});
@@ -40,11 +48,13 @@ app.get('/', function (req, res, next) {
 })
 
 app.get('/cookie', function (req, res, next) {
-    console.log(req.cookies.name);
+    console.log(req.cookies);
+    res.cookie("name",'lisi',{maxAge: 900000, httpOnly: true});
     res.send({cookie: req.cookies.name})
 })
 
 app.get('/download', function (req, res, next) {
+  console.log(req.cookies);
     const name = 'file.txt';
     const path = './' + name;
     const size = fs.statSync(path).size;
@@ -58,7 +68,6 @@ app.get('/download', function (req, res, next) {
 })
 
 app.get('/getDownload', function (req, res, next) {
-    console.log(req);
     const name = 'file.txt';
     const path = './' + name;
     const size = fs.statSync(path).size;
@@ -71,7 +80,55 @@ app.get('/getDownload', function (req, res, next) {
     f.pipe(res);
 })
 
+app.get('/cors', function (req, res, next) {
+  res.redirect(302, 'http://localhost:4200/assets/log.html');
+})
 
+app.post('/upload', urlencodedParser, function(req, res, next) {
+  const data = req.body.output;
+  const file = './output/' + getNowFormatDate() + '.html';
+  fs.writeFile(file, data, function(err, data) {
+    console.log(arguments);
+  })
+  res.send({ok: true});
+})
+
+// jsonp
+
+app.get('/jsonp', function(req, res, next) {
+  const params = url.parse(req.url, true);
+  const str = Object.keys(params.query).reduce((total, curr) => {
+	  console.log(total);
+	  if (curr !=='callback') {
+		 return total+= params.query[curr]; 
+	  } else {
+		  return total;
+	  }
+  } , '');
+  const data = {[str]: 'jifeng', 'company': 'taobao'};
+  if (params.query && params.query.callback) {
+	  console.log(str);
+    const responseData = params.query.callback + `(${JSON.stringify(data)})`;
+    res.end(responseData);
+  } else {
+    res.end(JSON.stringify(data));
+  }
+})
+
+function getNowFormatDate() {
+  var date = new Date();
+  var seperator1 = "-";
+  var month = date.getMonth() + 1;
+  var strDate = date.getDate();
+  if (month >= 1 && month <= 9) {
+      month = "0" + month;
+  }
+  if (strDate >= 0 && strDate <= 9) {
+      strDate = "0" + strDate;
+  }
+  var currentdate = date.getFullYear() + seperator1 + month + seperator1 + strDate;
+  return currentdate.toString();
+}
 
 
 const server = app.listen(8081, function () {
